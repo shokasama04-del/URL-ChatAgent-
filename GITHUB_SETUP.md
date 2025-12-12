@@ -103,4 +103,3 @@ git remote set-url origin https://github.com/your-username/url-analyzer.git
 1. ブラウザのキャッシュをクリア（`Ctrl + Shift + R`）
 2. シークレットモードで確認
 3. 5-10分待ってから再確認
-

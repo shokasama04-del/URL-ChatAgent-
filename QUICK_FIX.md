@@ -19,7 +19,7 @@ git commit -m "Update: Add cache busting"
 git push origin main
 ```
 その後、5-10分待ってから確認
-URL-ChatAgent-
+
 ## それでも反映されない場合
 
 1. **GitHubリポジトリの「Actions」タブを確認**
@@ -35,4 +35,3 @@ URL-ChatAgent-
    ```
    https://your-username.github.io/url-analyzer/?v=2
    ```
-
