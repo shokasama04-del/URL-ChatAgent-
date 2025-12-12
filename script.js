@@ -8,6 +8,8 @@ const analyzeBtn = document.getElementById('analyzeBtn');
 const resultsSection = document.getElementById('resultsSection');
 const errorSection = document.getElementById('errorSection');
 const errorMessage = document.getElementById('errorMessage');
+const generateSitemapBtn = document.getElementById('generateSitemapBtn');
+const sitemapContainer = document.getElementById('sitemapContainer');
 
 // フォーム送信時の処理
 analyzeForm.addEventListener('submit', async (e) => {
@@ -1042,4 +1044,529 @@ function hideError() {
 
 function hideResults() {
     resultsSection.style.display = 'none';
+}
+
+// ============================================
+// サイトマップ生成機能
+// ============================================
+
+// サイトマップ生成ボタンのイベントリスナー
+generateSitemapBtn.addEventListener('click', async () => {
+    const url = document.getElementById('url').value.trim();
+    if (!url) {
+        showError('まずURLを分析してください');
+        return;
+    }
+    
+    try {
+        setSitemapLoading(true);
+        const domain = new URL(url).origin;
+        const sitemapData = await generateSitemap(domain, url);
+        displaySitemap(sitemapData);
+    } catch (error) {
+        console.error('サイトマップ生成エラー:', error);
+        showError(`サイトマップの生成に失敗しました: ${error.message}`);
+    } finally {
+        setSitemapLoading(false);
+    }
+});
+
+/**
+ * サイトマップを生成
+ */
+async function generateSitemap(domain, baseUrl) {
+    let urls = [];
+    
+    // 1. sitemap.xmlを試行
+    try {
+        const sitemapUrls = await fetchSitemapXML(domain);
+        if (sitemapUrls && sitemapUrls.length > 0) {
+            urls = sitemapUrls.slice(0, 200); // 最大200件
+            console.log(`sitemap.xmlから${urls.length}件のURLを取得`);
+        }
+    } catch (error) {
+        console.warn('sitemap.xmlの取得に失敗:', error);
+    }
+    
+    // 2. sitemap.xmlが取得できない場合、robots.txtからsitemapを確認
+    if (urls.length === 0) {
+        try {
+            const robotsSitemapUrls = await fetchSitemapFromRobots(domain);
+            if (robotsSitemapUrls && robotsSitemapUrls.length > 0) {
+                urls = robotsSitemapUrls.slice(0, 200);
+                console.log(`robots.txtから${urls.length}件のURLを取得`);
+            }
+        } catch (error) {
+            console.warn('robots.txtからのsitemap取得に失敗:', error);
+        }
+    }
+    
+    // 3. それでも取得できない場合、主要URLを推定
+    if (urls.length === 0) {
+        urls = estimateMainUrls(domain, baseUrl);
+        console.log(`推定で${urls.length}件のURLを生成`);
+    }
+    
+    // 各URLを分析してページ種別と優先度を判定
+    const analyzedUrls = await analyzeUrls(urls, domain);
+    
+    return {
+        domain,
+        totalUrls: analyzedUrls.length,
+        urls: analyzedUrls
+    };
+}
+
+/**
+ * sitemap.xmlを取得してパース
+ */
+async function fetchSitemapXML(domain) {
+    const sitemapUrls = [
+        `${domain}/sitemap.xml`,
+        `${domain}/sitemap_index.xml`,
+        `${domain}/sitemap1.xml`
+    ];
+    
+    for (const sitemapUrl of sitemapUrls) {
+        try {
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sitemapUrl)}`;
+            const response = await fetch(proxyUrl);
+            const data = await response.json();
+            
+            if (data.contents) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/xml');
+                
+                // エラーチェック
+                const parserError = doc.querySelector('parsererror');
+                if (parserError) {
+                    continue;
+                }
+                
+                // sitemapindexの場合
+                const sitemapIndex = doc.querySelectorAll('sitemapindex > sitemap > loc');
+                if (sitemapIndex.length > 0) {
+                    const urls = [];
+                    for (const loc of Array.from(sitemapIndex).slice(0, 5)) {
+                        const subSitemapUrl = loc.textContent.trim();
+                        try {
+                            const subUrls = await fetchSingleSitemap(subSitemapUrl);
+                            urls.push(...subUrls);
+                        } catch (e) {
+                            console.warn(`サブサイトマップの取得に失敗: ${subSitemapUrl}`);
+                        }
+                    }
+                    return urls;
+                }
+                
+                // 通常のsitemap
+                const locs = doc.querySelectorAll('url > loc');
+                return Array.from(locs).map(loc => loc.textContent.trim());
+            }
+        } catch (error) {
+            console.warn(`sitemap取得失敗: ${sitemapUrl}`, error);
+            continue;
+        }
+    }
+    
+    return [];
+}
+
+/**
+ * 単一のsitemap.xmlを取得
+ */
+async function fetchSingleSitemap(sitemapUrl) {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(sitemapUrl)}`;
+    const response = await fetch(proxyUrl);
+    const data = await response.json();
+    
+    if (data.contents) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data.contents, 'text/xml');
+        const locs = doc.querySelectorAll('url > loc');
+        return Array.from(locs).map(loc => loc.textContent.trim());
+    }
+    
+    return [];
+}
+
+/**
+ * robots.txtからsitemapを取得
+ */
+async function fetchSitemapFromRobots(domain) {
+    try {
+        const robotsUrl = `${domain}/robots.txt`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(robotsUrl)}`;
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+        
+        if (data.contents) {
+            const lines = data.contents.split('\n');
+            const sitemapLines = lines.filter(line => 
+                line.toLowerCase().startsWith('sitemap:')
+            );
+            
+            if (sitemapLines.length > 0) {
+                const sitemapUrl = sitemapLines[0].split(':')[1].trim();
+                return await fetchSingleSitemap(sitemapUrl);
+            }
+        }
+    } catch (error) {
+        console.warn('robots.txtの取得に失敗:', error);
+    }
+    
+    return [];
+}
+
+/**
+ * 主要URLを推定
+ */
+function estimateMainUrls(domain, baseUrl) {
+    const commonPaths = [
+        '/',
+        '/about',
+        '/contact',
+        '/faq',
+        '/help',
+        '/support',
+        '/login',
+        '/signup',
+        '/register',
+        '/products',
+        '/services',
+        '/blog',
+        '/news',
+        '/privacy',
+        '/terms',
+        '/sitemap',
+        '/search',
+        '/cart',
+        '/checkout',
+        '/account',
+        '/profile',
+        '/settings'
+    ];
+    
+    return commonPaths.map(path => `${domain}${path}`);
+}
+
+/**
+ * URLを分析してページ種別と優先度を判定
+ */
+async function analyzeUrls(urls, domain) {
+    const analyzedUrls = [];
+    const maxConcurrent = 5; // 同時リクエスト数を制限
+    
+    for (let i = 0; i < urls.length; i += maxConcurrent) {
+        const batch = urls.slice(i, i + maxConcurrent);
+        const promises = batch.map(url => analyzeSingleUrl(url, domain));
+        const results = await Promise.allSettled(promises);
+        
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                analyzedUrls.push(result.value);
+            } else {
+                // エラーでもURL情報だけは記録
+                analyzedUrls.push({
+                    url: batch[index],
+                    pageType: '不明',
+                    role: 'ページ情報が取得できませんでした',
+                    chatAgentRole: '要確認',
+                    priority: '低'
+                });
+            }
+        });
+    }
+    
+    return analyzedUrls;
+}
+
+/**
+ * 単一URLを分析
+ */
+async function analyzeSingleUrl(url, domain) {
+    try {
+        // URLからページ種別を推定
+        const pageType = detectPageType(url);
+        
+        // HTMLを取得して詳細分析（タイムアウト付き）
+        const htmlData = await Promise.race([
+            fetchHTMLWithTimeout(url),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), 3000)
+            )
+        ]).catch(() => null);
+        
+        // ページの役割を判定
+        const role = determinePageRole(url, pageType, htmlData);
+        
+        // ChatAgentの役割を判定
+        const chatAgentRole = determineChatAgentRole(pageType, role, htmlData);
+        
+        // 優先度を判定
+        const priority = determinePriority(pageType, role, htmlData);
+        
+        return {
+            url,
+            pageType,
+            role,
+            chatAgentRole,
+            priority
+        };
+    } catch (error) {
+        // エラー時も基本情報を返す
+        return {
+            url,
+            pageType: detectPageType(url),
+            role: 'ページ情報が取得できませんでした',
+            chatAgentRole: '要確認',
+            priority: '低'
+        };
+    }
+}
+
+/**
+ * HTMLを取得（タイムアウト付き）
+ */
+async function fetchHTMLWithTimeout(url) {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const response = await fetch(proxyUrl);
+    const data = await response.json();
+    
+    if (data.contents) {
+        const parser = new DOMParser();
+        return parser.parseFromString(data.contents, 'text/html');
+    }
+    
+    return null;
+}
+
+/**
+ * URLからページ種別を検出
+ */
+function detectPageType(url) {
+    const urlLower = url.toLowerCase();
+    const path = new URL(url).pathname.toLowerCase();
+    
+    // FAQ / ヘルプ
+    if (path.includes('/faq') || path.includes('/help') || path.includes('/support') || 
+        path.includes('/よくある質問') || path.includes('/qa')) {
+        return 'FAQ';
+    }
+    
+    // 問い合わせ
+    if (path.includes('/contact') || path.includes('/inquiry') || path.includes('/問い合わせ') || 
+        path.includes('/お問い合わせ') || path.includes('/contact-us') || path.includes('/お問合せ')) {
+        return '問い合わせ';
+    }
+    
+    // ログイン
+    if (path.includes('/login') || path.includes('/signin') || path.includes('/ログイン') || 
+        path.includes('/auth') || path.includes('/account/login')) {
+        return 'ログイン';
+    }
+    
+    // 商品詳細
+    if (path.includes('/product/') || path.includes('/item/') || path.includes('/goods/') || 
+        path.includes('/商品/') || path.includes('/p/') || path.includes('/detail/')) {
+        return '商品詳細';
+    }
+    
+    // カテゴリ
+    if (path.includes('/category/') || path.includes('/cat/') || path.includes('/categories/') || 
+        path.includes('/カテゴリ/') || path.includes('/category')) {
+        return 'カテゴリ';
+    }
+    
+    // カート
+    if (path.includes('/cart') || path.includes('/カート') || path.includes('/basket')) {
+        return 'カート';
+    }
+    
+    // 決済
+    if (path.includes('/checkout') || path.includes('/payment') || path.includes('/決済') || 
+        path.includes('/pay') || path.includes('/purchase') || path.includes('/購入')) {
+        return '決済';
+    }
+    
+    // 店舗情報
+    if (path.includes('/store') || path.includes('/shop') || path.includes('/店舗') || 
+        path.includes('/stores') || path.includes('/location')) {
+        return '店舗';
+    }
+    
+    // ブログ / 記事
+    if (path.includes('/blog/') || path.includes('/article/') || path.includes('/post/') || 
+        path.includes('/news/') || path.includes('/column/') || path.includes('/記事/')) {
+        return 'ブログ/記事';
+    }
+    
+    // 会社情報
+    if (path.includes('/about') || path.includes('/company') || path.includes('/会社') || 
+        path.includes('/corporate') || path.includes('/企業情報')) {
+        return '会社情報';
+    }
+    
+    // トップページ
+    if (path === '/' || path === '') {
+        return 'トップページ';
+    }
+    
+    // その他
+    return 'その他';
+}
+
+/**
+ * ページの役割を判定
+ */
+function determinePageRole(url, pageType, htmlData) {
+    const roles = {
+        'FAQ': 'よくある質問への回答を提供し、ユーザーの疑問を解決する',
+        '問い合わせ': 'ユーザーからの問い合わせを受け付け、サポートの入口となる',
+        'ログイン': 'ユーザー認証を行い、会員専用機能へのアクセスを提供する',
+        '商品詳細': '商品の詳細情報を表示し、購入判断を支援する',
+        'カテゴリ': '商品カテゴリごとに一覧を表示し、商品探しを支援する',
+        'カート': '購入予定の商品を管理し、購入フローへ誘導する',
+        '決済': '購入手続きを完了させ、取引を成立させる',
+        '店舗': '店舗情報を提供し、来店を促進する',
+        'ブログ/記事': '情報を提供し、SEO効果とユーザーエンゲージメントを向上させる',
+        '会社情報': '企業の信頼性を示し、ブランディングを強化する',
+        'トップページ': 'サイトの第一印象を形成し、主要コンテンツへ誘導する',
+        'その他': 'サイトの目的に応じた役割を果たす'
+    };
+    
+    return roles[pageType] || 'ページの役割を判定中';
+}
+
+/**
+ * ChatAgentの役割を判定
+ */
+function determineChatAgentRole(pageType, role, htmlData) {
+    const chatAgentRoles = {
+        'FAQ': 'よくある質問に即座に回答し、問い合わせ件数を削減する',
+        '問い合わせ': '問い合わせ内容を整理し、適切な担当者へ振り分ける',
+        'ログイン': 'ログイン手順を案内し、アカウント関連の問い合わせに対応する',
+        '商品詳細': '商品の特徴や比較情報を提供し、購入意思決定を支援する',
+        'カテゴリ': '商品検索を支援し、希望商品への導線を提供する',
+        'カート': 'カート操作をサポートし、購入完了まで誘導する',
+        '決済': '決済手続きを案内し、エラー対応や支払い方法の説明を行う',
+        '店舗': '店舗情報を提供し、来店予約やアクセス方法を案内する',
+        'ブログ/記事': '記事内容に関する質問に対応し、関連情報を提供する',
+        '会社情報': '企業情報に関する質問に対応し、信頼性を高める',
+        'トップページ': '初回訪問者を適切なページへ誘導し、サイト全体の案内を行う',
+        'その他': 'ページの目的に応じたサポートを提供する'
+    };
+    
+    return chatAgentRoles[pageType] || 'ページの目的に応じたサポートを提供する';
+}
+
+/**
+ * ChatAgent設置優先度を判定
+ */
+function determinePriority(pageType, role, htmlData) {
+    // 高優先度: 問い合わせが多い、コンバージョンに直結
+    const highPriority = ['FAQ', '問い合わせ', '商品詳細', 'カート', '決済', 'ログイン'];
+    if (highPriority.includes(pageType)) {
+        return '高';
+    }
+    
+    // 中優先度: 重要な導線だが、直接的な問い合わせは少ない
+    const mediumPriority = ['カテゴリ', 'トップページ', '店舗'];
+    if (mediumPriority.includes(pageType)) {
+        return '中';
+    }
+    
+    // 低優先度: 情報提供が主目的
+    return '低';
+}
+
+/**
+ * サイトマップを表示
+ */
+function displaySitemap(sitemapData) {
+    const { domain, totalUrls, urls } = sitemapData;
+    
+    // 優先度でソート（高→中→低）
+    const priorityOrder = { '高': 1, '中': 2, '低': 3 };
+    const sortedUrls = [...urls].sort((a, b) => 
+        (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99)
+    );
+    
+    let html = `
+        <div class="sitemap-summary">
+            <p><strong>ドメイン:</strong> ${domain}</p>
+            <p><strong>取得URL数:</strong> ${totalUrls}件</p>
+        </div>
+        <div class="sitemap-filters">
+            <button class="filter-btn active" data-filter="all">すべて</button>
+            <button class="filter-btn" data-filter="高">優先度: 高</button>
+            <button class="filter-btn" data-filter="中">優先度: 中</button>
+            <button class="filter-btn" data-filter="低">優先度: 低</button>
+        </div>
+        <div class="sitemap-list" id="sitemapList">
+    `;
+    
+    sortedUrls.forEach((item, index) => {
+        const priorityClass = `priority-${item.priority}`;
+        html += `
+            <div class="sitemap-item ${priorityClass}" data-priority="${item.priority}">
+                <div class="sitemap-item-header">
+                    <span class="sitemap-index">${index + 1}</span>
+                    <span class="sitemap-page-type">${item.pageType}</span>
+                    <span class="sitemap-priority priority-badge priority-${item.priority}">${item.priority}</span>
+                </div>
+                <div class="sitemap-url">
+                    <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.url}</a>
+                </div>
+                <div class="sitemap-role">
+                    <strong>役割:</strong> ${item.role}
+                </div>
+                <div class="sitemap-chatagent-role">
+                    <strong>ChatAgentの役割:</strong> ${item.chatAgentRole}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    sitemapContainer.innerHTML = html;
+    sitemapContainer.style.display = 'block';
+    
+    // フィルターボタンのイベントリスナー
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const filter = btn.dataset.filter;
+            const items = document.querySelectorAll('.sitemap-item');
+            
+            items.forEach(item => {
+                if (filter === 'all' || item.dataset.priority === filter) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    });
+}
+
+/**
+ * サイトマップ生成のローディング状態を設定
+ */
+function setSitemapLoading(loading) {
+    const btnText = generateSitemapBtn.querySelector('.btn-text');
+    const btnLoading = generateSitemapBtn.querySelector('.btn-loading');
+    
+    if (loading) {
+        btnText.style.display = 'none';
+        btnLoading.style.display = 'inline';
+        generateSitemapBtn.disabled = true;
+    } else {
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+        generateSitemapBtn.disabled = false;
+    }
 }

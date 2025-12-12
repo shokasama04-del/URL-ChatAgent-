@@ -400,3 +400,187 @@ select:focus {
     animation: spin 0.8s linear infinite;
     margin-right: 8px;
 }
+
+/* サイトマップ */
+.btn-secondary {
+    padding: 12px 24px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.sitemap-container {
+    margin-top: 20px;
+}
+
+.sitemap-summary {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border-left: 4px solid #667eea;
+}
+
+.sitemap-summary p {
+    margin: 8px 0;
+    color: #333;
+}
+
+.sitemap-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.filter-btn:hover {
+    background: #e9ecef;
+    border-color: #667eea;
+}
+
+.filter-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.sitemap-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 800px;
+    overflow-y: auto;
+}
+
+.sitemap-item {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid #e0e0e0;
+    transition: all 0.3s;
+}
+
+.sitemap-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.sitemap-item.priority-高 {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+}
+
+.sitemap-item.priority-中 {
+    border-left-color: #ffc107;
+    background: #fffbf0;
+}
+
+.sitemap-item.priority-低 {
+    border-left-color: #6c757d;
+    background: #f8f9fa;
+}
+
+.sitemap-item-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.sitemap-index {
+    background: #667eea;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 30px;
+    text-align: center;
+}
+
+.sitemap-page-type {
+    background: #e9ecef;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.priority-badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.priority-badge.priority-高 {
+    background: #dc3545;
+    color: white;
+}
+
+.priority-badge.priority-中 {
+    background: #ffc107;
+    color: #333;
+}
+
+.priority-badge.priority-低 {
+    background: #6c757d;
+    color: white;
+}
+
+.sitemap-url {
+    margin-bottom: 12px;
+}
+
+.sitemap-url a {
+    color: #667eea;
+    text-decoration: none;
+    word-break: break-all;
+    font-size: 0.95rem;
+}
+
+.sitemap-url a:hover {
+    text-decoration: underline;
+}
+
+.sitemap-role,
+.sitemap-chatagent-role {
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #495057;
+}
+
+.sitemap-chatagent-role {
+    background: #f0f4ff;
+    border-left: 3px solid #667eea;
+}
