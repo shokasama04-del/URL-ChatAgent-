@@ -1492,24 +1492,42 @@ function displaySitemap(sitemapData) {
         (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99)
     );
     
+    // ページ種別の一覧を取得
+    const pageTypes = [...new Set(sortedUrls.map(item => item.pageType))].sort();
+    
     let html = `
         <div class="sitemap-summary">
             <p><strong>ドメイン:</strong> ${domain}</p>
             <p><strong>取得URL数:</strong> ${totalUrls}件</p>
+            <button class="btn-csv-export" id="csvExportBtn" style="margin-top: 12px;">
+                📥 CSVでエクスポート
+            </button>
         </div>
         <div class="sitemap-filters">
-            <button class="filter-btn active" data-filter="all">すべて</button>
-            <button class="filter-btn" data-filter="高">優先度: 高</button>
-            <button class="filter-btn" data-filter="中">優先度: 中</button>
-            <button class="filter-btn" data-filter="低">優先度: 低</button>
+            <div class="filter-group">
+                <span class="filter-label">優先度:</span>
+                <button class="filter-btn active" data-filter-type="priority" data-filter="all">すべて</button>
+                <button class="filter-btn" data-filter-type="priority" data-filter="高">高</button>
+                <button class="filter-btn" data-filter-type="priority" data-filter="中">中</button>
+                <button class="filter-btn" data-filter-type="priority" data-filter="低">低</button>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">ページ種別:</span>
+                <button class="filter-btn active" data-filter-type="category" data-filter="all">すべて</button>
+                ${pageTypes.map(type => `
+                    <button class="filter-btn" data-filter-type="category" data-filter="${type}">${type}</button>
+                `).join('')}
+            </div>
         </div>
         <div class="sitemap-list" id="sitemapList">
     `;
     
     sortedUrls.forEach((item, index) => {
         const priorityClass = `priority-${item.priority}`;
+        // ページ種別をエスケープしてdata属性に設定
+        const escapedPageType = item.pageType.replace(/"/g, '&quot;');
         html += `
-            <div class="sitemap-item ${priorityClass}" data-priority="${item.priority}">
+            <div class="sitemap-item ${priorityClass}" data-priority="${item.priority}" data-category="${escapedPageType}">
                 <div class="sitemap-item-header">
                     <span class="sitemap-index">${index + 1}</span>
                     <span class="sitemap-page-type">${item.pageType}</span>
@@ -1533,17 +1551,39 @@ function displaySitemap(sitemapData) {
     sitemapContainer.innerHTML = html;
     sitemapContainer.style.display = 'block';
     
+    // フィルター状態を保存
+    let currentPriorityFilter = 'all';
+    let currentCategoryFilter = 'all';
+    
     // フィルターボタンのイベントリスナー
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            const filterType = btn.dataset.filterType;
+            const filter = btn.dataset.filter;
+            
+            // 同じタイプのフィルターボタンのactiveを解除
+            document.querySelectorAll(`.filter-btn[data-filter-type="${filterType}"]`).forEach(b => {
+                b.classList.remove('active');
+            });
             btn.classList.add('active');
             
-            const filter = btn.dataset.filter;
-            const items = document.querySelectorAll('.sitemap-item');
+            // フィルター状態を更新
+            if (filterType === 'priority') {
+                currentPriorityFilter = filter;
+            } else if (filterType === 'category') {
+                currentCategoryFilter = filter;
+            }
             
+            // フィルタリング実行
+            const items = document.querySelectorAll('.sitemap-item');
             items.forEach(item => {
-                if (filter === 'all' || item.dataset.priority === filter) {
+                const priority = item.dataset.priority;
+                const category = item.dataset.category;
+                
+                const priorityMatch = currentPriorityFilter === 'all' || priority === currentPriorityFilter;
+                const categoryMatch = currentCategoryFilter === 'all' || category === currentCategoryFilter;
+                
+                if (priorityMatch && categoryMatch) {
                     item.style.display = 'block';
                 } else {
                     item.style.display = 'none';
@@ -1551,6 +1591,70 @@ function displaySitemap(sitemapData) {
             });
         });
     });
+    
+    // CSVエクスポートボタンのイベントリスナー
+    document.getElementById('csvExportBtn').addEventListener('click', () => {
+        exportToCSV(sitemapData);
+    });
+    
+    // サイトマップデータをグローバルに保存（CSVエクスポート用）
+    window.currentSitemapData = sitemapData;
+}
+
+/**
+ * CSVエクスポート機能
+ */
+function exportToCSV(sitemapData) {
+    const { domain, urls } = sitemapData;
+    
+    // CSVヘッダー
+    const headers = ['URL', 'ページ種別', '優先度', '役割', 'ChatAgentの役割'];
+    
+    // CSVデータ行
+    const rows = urls.map(item => [
+        item.url,
+        item.pageType,
+        item.priority,
+        item.role,
+        item.chatAgentRole
+    ]);
+    
+    // CSV形式に変換
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => 
+            row.map(cell => {
+                // カンマや改行を含む場合はダブルクォートで囲む
+                const cellStr = String(cell || '');
+                if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+                    return `"${cellStr.replace(/"/g, '""')}"`;
+                }
+                return cellStr;
+            }).join(',')
+        )
+    ].join('\n');
+    
+    // BOM付きUTF-8でエンコード（Excelで正しく開けるように）
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // ダウンロードリンクを作成
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    
+    // ファイル名を生成（ドメイン名から）
+    const domainName = domain.replace(/^https?:\/\//, '').replace(/\/$/, '').replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `sitemap_${domainName}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.setAttribute('download', fileName);
+    
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // メモリリークを防ぐ
+    setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
 /**

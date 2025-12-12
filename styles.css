@@ -442,9 +442,23 @@ select:focus {
 
 .sitemap-filters {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 12px;
     margin-bottom: 16px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+    min-width: 80px;
 }
 
 .filter-btn {
@@ -583,4 +597,26 @@ select:focus {
 .sitemap-chatagent-role {
     background: #f0f4ff;
     border-left: 3px solid #667eea;
+}
+
+/* CSVエクスポートボタン */
+.btn-csv-export {
+    padding: 10px 20px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.btn-csv-export:hover {
+    background: #218838;
+    transform: translateY(-2px);
+}
+
+.btn-csv-export:active {
+    transform: translateY(0);
 }
