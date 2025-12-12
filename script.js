@@ -693,9 +693,77 @@ function displayResults(hypothesis, analysisData) {
         analysisData
     };
     
-    // 結果セクションを表示
+    // ウェルカムスクリーンを非表示、結果セクションを表示
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'none';
+    }
     resultsSection.style.display = 'block';
-    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // サイドバーナビゲーションを表示
+    const sidebarNav = document.getElementById('sidebarNav');
+    if (sidebarNav) {
+        sidebarNav.style.display = 'block';
+    }
+    
+    // 最初のセクションにスクロール
+    const firstSection = document.querySelector('.result-card');
+    if (firstSection) {
+        firstSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    // サイドバーナビゲーションのイベントリスナーを設定
+    setupSidebarNavigation();
+}
+
+/**
+ * サイドバーナビゲーションの設定
+ */
+function setupSidebarNavigation() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // アクティブ状態を更新
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            
+            // 該当セクションにスクロール
+            const sectionId = link.dataset.section;
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+    
+    // スクロール時にアクティブ状態を更新
+    const resultCards = document.querySelectorAll('.result-card');
+    const observerOptions = {
+        root: null,
+        rootMargin: '-20% 0px -60% 0px',
+        threshold: 0
+    };
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const sectionId = entry.target.id;
+                navLinks.forEach(link => {
+                    if (link.dataset.section === sectionId) {
+                        navLinks.forEach(l => l.classList.remove('active'));
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
+    }, observerOptions);
+    
+    resultCards.forEach(card => {
+        observer.observe(card);
+    });
 }
 
 /**
@@ -1044,6 +1112,14 @@ function hideError() {
 
 function hideResults() {
     resultsSection.style.display = 'none';
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    if (welcomeScreen) {
+        welcomeScreen.style.display = 'flex';
+    }
+    const sidebarNav = document.getElementById('sidebarNav');
+    if (sidebarNav) {
+        sidebarNav.style.display = 'none';
+    }
 }
 
 // ============================================
@@ -1674,3 +1750,4 @@ function setSitemapLoading(loading) {
         generateSitemapBtn.disabled = false;
     }
 }
+

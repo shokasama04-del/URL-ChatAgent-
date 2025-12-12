@@ -10,40 +10,39 @@
     <link rel="stylesheet" href="styles.css?v=1.0">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>URL分析 × ChatAgent活用支援ツール</h1>
-            <p class="subtitle">URLを分析して、ChatAgentの初回メッセージと選択肢を提案します</p>
-        </header>
+    <div class="app-layout">
+        <!-- 左サイドバー -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="sidebar-title">URL分析 × ChatAgent</h1>
+                <p class="sidebar-subtitle">活用支援ツール</p>
+            </div>
 
-        <main>
-            <section class="input-section">
-                <form id="analyzeForm">
+            <div class="sidebar-content">
+                <form id="analyzeForm" class="sidebar-form">
                     <div class="form-group">
                         <label for="url">ドメインURL <span class="required">*</span></label>
                         <input type="url" id="url" name="url" placeholder="https://example.com" required>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="siteType">サイト種別（任意）</label>
-                            <select id="siteType" name="siteType">
-                                <option value="">選択してください</option>
-                                <option value="EC">EC</option>
-                                <option value="SaaS">SaaS</option>
-                                <option value="コーポレート">コーポレート</option>
-                                <option value="メディア">メディア</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label for="siteType">サイト種別（任意）</label>
+                        <select id="siteType" name="siteType">
+                            <option value="">選択してください</option>
+                            <option value="EC">EC</option>
+                            <option value="SaaS">SaaS</option>
+                            <option value="コーポレート">コーポレート</option>
+                            <option value="メディア">メディア</option>
+                        </select>
+                    </div>
 
-                        <div class="form-group">
-                            <label for="businessType">BtoB / BtoC（任意）</label>
-                            <select id="businessType" name="businessType">
-                                <option value="">選択してください</option>
-                                <option value="BtoB">BtoB</option>
-                                <option value="BtoC">BtoC</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label for="businessType">BtoB / BtoC（任意）</label>
+                        <select id="businessType" name="businessType">
+                            <option value="">選択してください</option>
+                            <option value="BtoB">BtoB</option>
+                            <option value="BtoC">BtoC</option>
+                        </select>
                     </div>
 
                     <button type="submit" class="btn-primary" id="analyzeBtn">
@@ -51,31 +50,80 @@
                         <span class="btn-loading" style="display: none;">分析中...</span>
                     </button>
                 </form>
-            </section>
+
+                <!-- ナビゲーションメニュー（結果表示後） -->
+                <nav class="sidebar-nav" id="sidebarNav" style="display: none;">
+                    <h3 class="nav-title">分析結果</h3>
+                    <ul class="nav-menu">
+                        <li><a href="#traffic-sources" class="nav-link active" data-section="traffic-sources">① 流入経路</a></li>
+                        <li><a href="#user-profile" class="nav-link" data-section="user-profile">② ユーザー像</a></li>
+                        <li><a href="#chat-agent" class="nav-link" data-section="chat-agent">③ ChatAgent提案</a></li>
+                        <li><a href="#ad-library" class="nav-link" data-section="ad-library">④ 広告ライブラリ</a></li>
+                        <li><a href="#sitemap" class="nav-link" data-section="sitemap">⑤ サイトマップ</a></li>
+                        <li><a href="#analysis-data" class="nav-link" data-section="analysis-data">⑥ 詳細データ</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- メインコンテンツエリア -->
+        <main class="main-content">
+            <!-- 初期表示: ウェルカムメッセージ -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-content">
+                    <h2>URL分析 × ChatAgent活用支援ツール</h2>
+                    <p>左側のフォームにドメインURLを入力して「分析する」ボタンをクリックしてください。</p>
+                    <div class="welcome-features">
+                        <div class="feature-item">
+                            <span class="feature-icon">🔍</span>
+                            <h3>流入経路の推定</h3>
+                            <p>SEO / 広告 / 指名の可能性を分析</p>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">👤</span>
+                            <h3>ユーザー像の推定</h3>
+                            <p>フェーズ・温度感・関心事を分析</p>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">💬</span>
+                            <h3>ChatAgent提案</h3>
+                            <p>最適な初回メッセージと選択肢を生成</p>
+                        </div>
+                        <div class="feature-item">
+                            <span class="feature-icon">🗺️</span>
+                            <h3>サイトマップ生成</h3>
+                            <p>主要URLのページ種別と優先度を分析</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 結果表示エリア -->
+            <section class="results-section" id="resultsSection" style="display: none;">
 
             <section class="results-section" id="resultsSection" style="display: none;">
-                <div class="result-card">
+                <div class="result-card" id="traffic-sources">
                     <h2>① 想定流入経路（仮説）</h2>
                     <div class="traffic-sources" id="trafficSources"></div>
                 </div>
 
-                <div class="result-card">
+                <div class="result-card" id="user-profile">
                     <h2>② 想定ユーザー像</h2>
                     <div class="user-profile" id="userProfile"></div>
                 </div>
 
-                <div class="result-card">
+                <div class="result-card" id="chat-agent">
                     <h2>③ ChatAgent活用提案</h2>
                     <div class="chat-agent-proposal" id="chatAgentProposal"></div>
                     <button class="btn-copy" id="copyBtn">結果をコピー</button>
                 </div>
 
-                <div class="result-card">
+                <div class="result-card" id="ad-library">
                     <h2>④ 広告ライブラリ検索リンク</h2>
                     <div class="ad-library-links" id="adLibraryLinks"></div>
                 </div>
 
-                <div class="result-card">
+                <div class="result-card" id="sitemap">
                     <h2>⑤ 簡易サイトマップ生成</h2>
                     <button class="btn-secondary" id="generateSitemapBtn" style="margin-bottom: 16px;">
                         <span class="btn-text">サイトマップを生成</span>
@@ -84,7 +132,7 @@
                     <div class="sitemap-container" id="sitemapContainer" style="display: none;"></div>
                 </div>
 
-                <div class="result-card">
+                <div class="result-card" id="analysis-data">
                     <h2>⑥ 詳細解析データ</h2>
                     <div class="analysis-data" id="analysisData"></div>
                 </div>
@@ -99,3 +147,4 @@
     <script src="script.js?v=1.0"></script>
 </body>
 </html>
+
