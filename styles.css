@@ -6,46 +6,10 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-    background: #f5f7fa;
-    min-height: 100vh;
-    padding: 0;
-    margin: 0;
-    color: #333;
-}
-
-.app-layout {
-    display: flex;
-    min-height: 100vh;
-}
-
-.sidebar {
-    width: 320px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    position: fixed;
-    height: 100vh;
-    overflow-y: auto;
-    z-index: 1000;
-}
-
-.sidebar-header {
-    padding: 30px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.sidebar-header h1 {
-    font-size: 1.5rem;
-    margin-bottom: 8px;
-    font-weight: 700;
-}
-
-.sidebar-header .subtitle {
-    font-size: 0.9rem;
-    opacity: 0.9;
-}
-
-.sidebar-content {
-    padding: 24px;
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
 }
 
 .container {
@@ -71,14 +35,6 @@ header h1 {
     opacity: 0.9;
 }
 
-.main-content {
-    flex: 1;
-    margin-left: 320px;
-    padding: 40px;
-    background: #f5f7fa;
-    min-height: 100vh;
-}
-
 main {
     background: white;
     border-radius: 16px;
@@ -86,113 +42,9 @@ main {
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
-.welcome-screen {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 80px);
-}
-
-.welcome-content {
-    text-align: center;
-    max-width: 800px;
-}
-
-.welcome-content h2 {
-    font-size: 2.5rem;
-    color: #333;
-    margin-bottom: 16px;
-    font-weight: 700;
-}
-
-.welcome-content > p {
-    font-size: 1.2rem;
-    color: #666;
-    margin-bottom: 48px;
-}
-
-.welcome-features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 24px;
-    margin-top: 48px;
-}
-
-.feature-item {
-    background: white;
-    padding: 24px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.feature-item:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.feature-icon {
-    font-size: 2.5rem;
-    display: block;
-    margin-bottom: 12px;
-}
-
-.feature-item h3 {
-    font-size: 1.1rem;
-    color: #333;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.feature-item p {
-    font-size: 0.9rem;
-    color: #666;
-    line-height: 1.6;
-}
-
 /* 入力セクション */
 .input-section {
     margin-bottom: 40px;
-}
-
-.sidebar .input-section {
-    margin-bottom: 0;
-}
-
-.sidebar label {
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 0.9rem;
-}
-
-.sidebar input[type="url"],
-.sidebar select {
-    background: rgba(255, 255, 255, 0.95);
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    color: #333;
-}
-
-.sidebar input[type="url"]:focus,
-.sidebar select:focus {
-    border-color: rgba(255, 255, 255, 0.5);
-    background: white;
-}
-
-.sidebar .btn-primary {
-    background: white;
-    color: #667eea;
-}
-
-.sidebar .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.sidebar .form-row {
-    display: block;
-}
-
-.sidebar .form-row .form-group {
-    margin-bottom: 20px;
 }
 
 .form-group {
@@ -207,21 +59,6 @@ main {
 
 @media (max-width: 768px) {
     .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .sidebar {
-        width: 100%;
-        position: relative;
-        height: auto;
-    }
-    
-    .main-content {
-        margin-left: 0;
-        padding: 20px;
-    }
-    
-    .welcome-features {
         grid-template-columns: 1fr;
     }
 }
@@ -284,16 +121,6 @@ select:focus {
 /* 結果セクション */
 .results-section {
     margin-top: 40px;
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.main-content .results-section {
-    background: transparent;
-    padding: 0;
-    box-shadow: none;
-    border-radius: 0;
 }
 
 .result-card {
