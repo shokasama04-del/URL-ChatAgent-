@@ -661,8 +661,23 @@ function displayResults(hypothesis, analysisData) {
     document.getElementById('chatAgentProposal').innerHTML = proposalHtml;
     
     // ④ 広告ライブラリ検索リンク
-    const adLibraryLinksHtml = generateAdLibraryLinks(analysisData);
-    document.getElementById('adLibraryLinks').innerHTML = adLibraryLinksHtml;
+    try {
+        console.log('Generating ad library links for:', analysisData);
+        const adLibraryLinksHtml = generateAdLibraryLinks(analysisData);
+        const adLibraryLinksElement = document.getElementById('adLibraryLinks');
+        if (adLibraryLinksElement) {
+            adLibraryLinksElement.innerHTML = adLibraryLinksHtml;
+            console.log('Ad library links HTML generated successfully');
+        } else {
+            console.error('adLibraryLinks element not found in DOM');
+        }
+    } catch (error) {
+        console.error('Error generating ad library links:', error);
+        const adLibraryLinksElement = document.getElementById('adLibraryLinks');
+        if (adLibraryLinksElement) {
+            adLibraryLinksElement.innerHTML = `<p class="error-message">広告ライブラリリンクの生成に失敗しました: ${error.message}</p>`;
+        }
+    }
     
     // ⑤ 詳細解析データ
     const analysisDataHtml = generateDetailedAnalysisData(analysisData);
@@ -685,7 +700,28 @@ function displayResults(hypothesis, analysisData) {
  * 広告ライブラリへの検索リンクを生成
  */
 function generateAdLibraryLinks(analysisData) {
-    const domain = analysisData.domain || '';
+    // domainが取得できない場合、URLから抽出を試みる
+    let domain = analysisData.domain || '';
+    if (!domain && analysisData.url) {
+        try {
+            domain = new URL(analysisData.url).hostname;
+        } catch (e) {
+            console.error('Failed to extract domain from URL:', e);
+        }
+    }
+    
+    // domainがまだ取得できない場合のフォールバック
+    if (!domain) {
+        return `
+            <div class="ad-library-grid">
+                <div class="ad-library-item">
+                    <h3>⚠️ ドメイン情報が取得できませんでした</h3>
+                    <p>URLからドメインを抽出できませんでした。手動で検索してください。</p>
+                </div>
+            </div>
+        `;
+    }
+    
     const domainName = domain.replace('www.', '').split('.')[0];
     
     // Facebook広告ライブラリのURL
@@ -693,9 +729,6 @@ function generateAdLibraryLinks(analysisData) {
     
     // Google広告透明性レポートのURL
     const googleAdsTransparencyUrl = `https://adstransparency.google.com/advertiser?advertiser_domain=${encodeURIComponent(domain)}`;
-    
-    // Twitter広告ライブラリ（利用可能な場合）
-    const twitterAdLibraryUrl = `https://transparency.twitter.com/en/reports/ads.html`;
     
     let html = '<div class="ad-library-grid">';
     
