@@ -238,16 +238,87 @@ select:focus {
     background: #218838;
 }
 
+/* 広告ライブラリリンク */
+.ad-library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.ad-library-item {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    transition: border-color 0.3s, transform 0.2s;
+}
+
+.ad-library-item:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+}
+
+.ad-library-item.highlight {
+    border-color: #ffc107;
+    background: #fffbf0;
+}
+
+.ad-library-item h3 {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.ad-library-item p {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 12px;
+}
+
+.ad-library-link {
+    display: inline-block;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.ad-library-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
 /* 解析データ */
 .analysis-data {
     background: white;
-    padding: 16px;
+    padding: 20px;
     border-radius: 8px;
-    font-family: 'Courier New', monospace;
     font-size: 0.9rem;
     color: #555;
-    max-height: 300px;
+    max-height: 600px;
     overflow-y: auto;
+}
+
+.data-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.data-section:last-child {
+    border-bottom: none;
+}
+
+.data-section-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #667eea;
 }
 
 .data-item {
@@ -269,6 +340,31 @@ select:focus {
 .data-value {
     color: #666;
     word-break: break-all;
+    line-height: 1.6;
+}
+
+.data-item.highlight {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.data-item pre {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    margin: 8px 0;
+}
+
+.og-image-preview {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    margin-top: 8px;
+    border: 2px solid #e0e0e0;
 }
 
 /* エラー */

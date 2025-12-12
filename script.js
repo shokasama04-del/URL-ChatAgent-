@@ -106,21 +106,44 @@ async function analyzeURL(url) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlContent, 'text/html');
         
-        // 必要な情報を抽出
-        const title = doc.querySelector('title')?.textContent?.trim() || '';
-        const metaDescription = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
-        const h1 = doc.querySelector('h1')?.textContent?.trim() || '';
-        const urlPath = new URL(url).pathname;
+            // 基本的な情報を抽出
+            const title = doc.querySelector('title')?.textContent?.trim() || '';
+            const metaDescription = doc.querySelector('meta[name="description"]')?.content?.trim() || '';
+            const h1 = doc.querySelector('h1')?.textContent?.trim() || '';
+            const urlPath = new URL(url).pathname;
+            const domain = new URL(url).hostname;
+            
+            // OGPタグの抽出
+            const ogTags = extractOGPTags(doc);
+            
+            // Twitterカードの抽出
+            const twitterCards = extractTwitterCards(doc);
+            
+            // 構造化データ（JSON-LD）の抽出
+            const structuredData = extractStructuredData(doc);
+            
+            // メタタグの詳細情報
+            const metaTags = extractMetaTags(doc);
+            
+            // 広告関連の検出
+            const adIndicators = detectAdIndicators(doc, url, title, metaDescription, h1);
         
             return {
                 url,
+                domain,
                 title,
                 metaDescription,
                 h1,
                 urlPath,
                 // 追加の分析用データ
                 allH1s: Array.from(doc.querySelectorAll('h1')).map(h => h.textContent.trim()),
-                keywords: extractKeywords(title + ' ' + metaDescription + ' ' + h1)
+                keywords: extractKeywords(title + ' ' + metaDescription + ' ' + h1),
+                // 新規追加: 詳細情報
+                ogTags,
+                twitterCards,
+                structuredData,
+                metaTags,
+                adIndicators
             };
             
         } catch (error) {
@@ -140,6 +163,163 @@ async function analyzeURL(url) {
         `2. サイトがアクセス可能か確認してください\n` +
         `3. しばらく時間をおいてから再試行してください`
     );
+}
+
+/**
+ * OGPタグを抽出
+ */
+function extractOGPTags(doc) {
+    const ogTags = {};
+    const ogSelectors = [
+        'meta[property="og:title"]',
+        'meta[property="og:description"]',
+        'meta[property="og:image"]',
+        'meta[property="og:url"]',
+        'meta[property="og:type"]',
+        'meta[property="og:site_name"]'
+    ];
+    
+    ogSelectors.forEach(selector => {
+        const element = doc.querySelector(selector);
+        if (element) {
+            const property = element.getAttribute('property');
+            const key = property ? property.replace('og:', '') : '';
+            if (key) ogTags[key] = element.getAttribute('content') || '';
+        }
+    });
+    
+    return ogTags;
+}
+
+/**
+ * Twitterカードを抽出
+ */
+function extractTwitterCards(doc) {
+    const twitterCards = {};
+    const twitterSelectors = [
+        'meta[name="twitter:card"]',
+        'meta[name="twitter:title"]',
+        'meta[name="twitter:description"]',
+        'meta[name="twitter:image"]',
+        'meta[name="twitter:site"]'
+    ];
+    
+    twitterSelectors.forEach(selector => {
+        const element = doc.querySelector(selector);
+        if (element) {
+            const name = element.getAttribute('name');
+            const key = name ? name.replace('twitter:', '') : '';
+            if (key) twitterCards[key] = element.getAttribute('content') || '';
+        }
+    });
+    
+    return twitterCards;
+}
+
+/**
+ * 構造化データ（JSON-LD）を抽出
+ */
+function extractStructuredData(doc) {
+    const structuredData = [];
+    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    
+    scripts.forEach(script => {
+        try {
+            const data = JSON.parse(script.textContent);
+            structuredData.push(data);
+        } catch (e) {
+            // JSONパースエラーは無視
+        }
+    });
+    
+    return structuredData;
+}
+
+/**
+ * メタタグの詳細情報を抽出
+ */
+function extractMetaTags(doc) {
+    const metaTags = {
+        robots: doc.querySelector('meta[name="robots"]')?.getAttribute('content') || '',
+        canonical: doc.querySelector('link[rel="canonical"]')?.getAttribute('href') || '',
+        author: doc.querySelector('meta[name="author"]')?.getAttribute('content') || '',
+        keywords: doc.querySelector('meta[name="keywords"]')?.getAttribute('content') || '',
+        viewport: doc.querySelector('meta[name="viewport"]')?.getAttribute('content') || ''
+    };
+    
+    // hreflangタグ
+    const hreflangs = [];
+    doc.querySelectorAll('link[rel="alternate"][hreflang]').forEach(link => {
+        hreflangs.push({
+            lang: link.getAttribute('hreflang'),
+            href: link.getAttribute('href')
+        });
+    });
+    metaTags.hreflangs = hreflangs;
+    
+    return metaTags;
+}
+
+/**
+ * 広告関連の指標を検出
+ */
+function detectAdIndicators(doc, url, title, metaDescription, h1) {
+    const indicators = {
+        hasAdKeywords: false,
+        hasLPStructure: false,
+        hasCampaignURL: false,
+        hasTrackingParams: false,
+        adKeywords: [],
+        trackingParams: []
+    };
+    
+    const allText = (title + ' ' + metaDescription + ' ' + h1).toLowerCase();
+    const urlLower = url.toLowerCase();
+    
+    // 広告関連キーワード
+    const adKeywordPatterns = [
+        '無料', 'free', '今すぐ', '限定', 'キャンペーン', 'campaign',
+        '資料請求', 'お問い合わせ', 'contact', 'お試し', 'trial',
+        '特典', 'プレゼント', 'gift', '割引', 'discount', 'セール', 'sale',
+        '新規', '初回', 'first', '登録', 'register', '申込', 'apply'
+    ];
+    
+    adKeywordPatterns.forEach(keyword => {
+        if (allText.includes(keyword.toLowerCase())) {
+            indicators.adKeywords.push(keyword);
+            indicators.hasAdKeywords = true;
+        }
+    });
+    
+    // LP構造の検出
+    const lpIndicators = [
+        'lp', 'landing', 'campaign', 'promo', 'offer', 'special',
+        'download', 'signup', 'register', 'trial'
+    ];
+    
+    lpIndicators.forEach(indicator => {
+        if (urlLower.includes(indicator)) {
+            indicators.hasLPStructure = true;
+            indicators.hasCampaignURL = true;
+        }
+    });
+    
+    // トラッキングパラメータの検出
+    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+                           'gclid', 'fbclid', 'ref', 'source', 'campaign_id'];
+    const urlObj = new URL(url);
+    
+    trackingParams.forEach(param => {
+        if (urlObj.searchParams.has(param)) {
+            indicators.trackingParams.push({
+                param,
+                value: urlObj.searchParams.get(param)
+            });
+            indicators.hasTrackingParams = true;
+        }
+    });
+    
+    return indicators;
 }
 
 /**
@@ -175,13 +355,27 @@ function extractKeywords(text) {
  * 分析データから仮説を生成
  */
 function generateHypothesis(analysisData, siteType, businessType) {
-    const { urlPath, title, metaDescription, h1, keywords } = analysisData;
+    const { urlPath, title, metaDescription, h1, keywords, adIndicators } = analysisData;
     const allText = (title + ' ' + metaDescription + ' ' + h1).toLowerCase();
     
     // スコア初期化
     let seoScore = 0;
     let adScore = 0;
     let directScore = 0;
+    
+    // 広告指標を活用（最初に評価）
+    if (adIndicators) {
+        if (adIndicators.hasAdKeywords && adIndicators.adKeywords.length > 0) {
+            // 広告キーワードが検出された場合、広告スコアを追加
+            adScore += Math.min(2, adIndicators.adKeywords.length);
+        }
+        if (adIndicators.hasCampaignURL) {
+            adScore += 2;
+        }
+        if (adIndicators.hasTrackingParams && adIndicators.trackingParams.length > 0) {
+            adScore += Math.min(2, adIndicators.trackingParams.length);
+        }
+    }
     
     // ============================================
     // ルール1: URLパス構造による判定
@@ -466,33 +660,12 @@ function displayResults(hypothesis, analysisData) {
     `;
     document.getElementById('chatAgentProposal').innerHTML = proposalHtml;
     
-    // 解析データ
-    const analysisDataHtml = `
-        <div class="data-item">
-            <div class="data-label">URL</div>
-            <div class="data-value">${analysisData.url}</div>
-        </div>
-        <div class="data-item">
-            <div class="data-label">URLパス</div>
-            <div class="data-value">${analysisData.urlPath}</div>
-        </div>
-        <div class="data-item">
-            <div class="data-label">Title</div>
-            <div class="data-value">${analysisData.title || '(なし)'}</div>
-        </div>
-        <div class="data-item">
-            <div class="data-label">Meta Description</div>
-            <div class="data-value">${analysisData.metaDescription || '(なし)'}</div>
-        </div>
-        <div class="data-item">
-            <div class="data-label">H1</div>
-            <div class="data-value">${analysisData.h1 || '(なし)'}</div>
-        </div>
-        <div class="data-item">
-            <div class="data-label">検出キーワード</div>
-            <div class="data-value">${analysisData.keywords.join(', ') || '(なし)'}</div>
-        </div>
-    `;
+    // ④ 広告ライブラリ検索リンク
+    const adLibraryLinksHtml = generateAdLibraryLinks(analysisData);
+    document.getElementById('adLibraryLinks').innerHTML = adLibraryLinksHtml;
+    
+    // ⑤ 詳細解析データ
+    const analysisDataHtml = generateDetailedAnalysisData(analysisData);
     document.getElementById('analysisData').innerHTML = analysisDataHtml;
     
     // コピー用のデータを保存
@@ -506,6 +679,250 @@ function displayResults(hypothesis, analysisData) {
     // 結果セクションを表示
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * 広告ライブラリへの検索リンクを生成
+ */
+function generateAdLibraryLinks(analysisData) {
+    const domain = analysisData.domain || '';
+    const domainName = domain.replace('www.', '').split('.')[0];
+    
+    // Facebook広告ライブラリのURL
+    const facebookAdLibraryUrl = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=JP&q=${encodeURIComponent(domain)}&search_type=page`;
+    
+    // Google広告透明性レポートのURL
+    const googleAdsTransparencyUrl = `https://adstransparency.google.com/advertiser?advertiser_domain=${encodeURIComponent(domain)}`;
+    
+    // Twitter広告ライブラリ（利用可能な場合）
+    const twitterAdLibraryUrl = `https://transparency.twitter.com/en/reports/ads.html`;
+    
+    let html = '<div class="ad-library-grid">';
+    
+    html += `
+        <div class="ad-library-item">
+            <h3>📘 Facebook広告ライブラリ</h3>
+            <p>${domain}のFacebook広告を検索</p>
+            <a href="${facebookAdLibraryUrl}" target="_blank" rel="noopener noreferrer" class="ad-library-link">
+                Facebook広告を確認する →
+            </a>
+        </div>
+    `;
+    
+    html += `
+        <div class="ad-library-item">
+            <h3>🔍 Google広告透明性レポート</h3>
+            <p>${domain}のGoogle広告を検索</p>
+            <a href="${googleAdsTransparencyUrl}" target="_blank" rel="noopener noreferrer" class="ad-library-link">
+                Google広告を確認する →
+            </a>
+        </div>
+    `;
+    
+    // 広告関連の指標がある場合
+    if (analysisData.adIndicators && analysisData.adIndicators.hasAdKeywords) {
+        html += `
+            <div class="ad-library-item highlight">
+                <h3>⚠️ 広告の可能性が高い</h3>
+                <p>検出された広告キーワード: ${analysisData.adIndicators.adKeywords.join(', ')}</p>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    return html;
+}
+
+/**
+ * 詳細な解析データを生成
+ */
+function generateDetailedAnalysisData(analysisData) {
+    let html = '';
+    
+    // 基本情報
+    html += `
+        <div class="data-section">
+            <h3 class="data-section-title">基本情報</h3>
+            <div class="data-item">
+                <div class="data-label">URL</div>
+                <div class="data-value">${analysisData.url}</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">ドメイン</div>
+                <div class="data-value">${analysisData.domain || '(なし)'}</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">URLパス</div>
+                <div class="data-value">${analysisData.urlPath}</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Title</div>
+                <div class="data-value">${analysisData.title || '(なし)'}</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">Meta Description</div>
+                <div class="data-value">${analysisData.metaDescription || '(なし)'}</div>
+            </div>
+            <div class="data-item">
+                <div class="data-label">H1</div>
+                <div class="data-value">${analysisData.h1 || '(なし)'}</div>
+            </div>
+        </div>
+    `;
+    
+    // OGPタグ
+    if (analysisData.ogTags && Object.keys(analysisData.ogTags).length > 0) {
+        html += `
+            <div class="data-section">
+                <h3 class="data-section-title">OGPタグ</h3>
+        `;
+        for (const [key, value] of Object.entries(analysisData.ogTags)) {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">og:${key}</div>
+                    <div class="data-value">${value}</div>
+                </div>
+            `;
+        }
+        // OGP画像のプレビュー
+        if (analysisData.ogTags.image) {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">OGP画像プレビュー</div>
+                    <div class="data-value">
+                        <img src="${analysisData.ogTags.image}" alt="OGP Image" class="og-image-preview" onerror="this.style.display='none'">
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    // Twitterカード
+    if (analysisData.twitterCards && Object.keys(analysisData.twitterCards).length > 0) {
+        html += `
+            <div class="data-section">
+                <h3 class="data-section-title">Twitterカード</h3>
+        `;
+        for (const [key, value] of Object.entries(analysisData.twitterCards)) {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">twitter:${key}</div>
+                    <div class="data-value">${value}</div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    // 広告関連の指標
+    if (analysisData.adIndicators) {
+        html += `
+            <div class="data-section">
+                <h3 class="data-section-title">広告関連の指標</h3>
+        `;
+        
+        if (analysisData.adIndicators.hasAdKeywords) {
+            html += `
+                <div class="data-item highlight">
+                    <div class="data-label">広告キーワード検出</div>
+                    <div class="data-value">${analysisData.adIndicators.adKeywords.join(', ')}</div>
+                </div>
+            `;
+        }
+        
+        if (analysisData.adIndicators.hasCampaignURL) {
+            html += `
+                <div class="data-item highlight">
+                    <div class="data-label">キャンペーンURL構造</div>
+                    <div class="data-value">検出されました（LP/キャンペーンページの可能性）</div>
+                </div>
+            `;
+        }
+        
+        if (analysisData.adIndicators.hasTrackingParams && analysisData.adIndicators.trackingParams.length > 0) {
+            html += `
+                <div class="data-item highlight">
+                    <div class="data-label">トラッキングパラメータ</div>
+                    <div class="data-value">
+                        ${analysisData.adIndicators.trackingParams.map(tp => 
+                            `<strong>${tp.param}</strong>: ${tp.value}`
+                        ).join('<br>')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+    }
+    
+    // メタタグ
+    if (analysisData.metaTags) {
+        html += `
+            <div class="data-section">
+                <h3 class="data-section-title">メタタグ情報</h3>
+        `;
+        if (analysisData.metaTags.robots) {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">robots</div>
+                    <div class="data-value">${analysisData.metaTags.robots}</div>
+                </div>
+            `;
+        }
+        if (analysisData.metaTags.canonical) {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">canonical</div>
+                    <div class="data-value">${analysisData.metaTags.canonical}</div>
+                </div>
+            `;
+        }
+        if (analysisData.metaTags.keywords) {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">keywords</div>
+                    <div class="data-value">${analysisData.metaTags.keywords}</div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    // 構造化データ
+    if (analysisData.structuredData && analysisData.structuredData.length > 0) {
+        html += `
+            <div class="data-section">
+                <h3 class="data-section-title">構造化データ（JSON-LD）</h3>
+                <div class="data-item">
+                    <div class="data-label">検出数</div>
+                    <div class="data-value">${analysisData.structuredData.length}件</div>
+                </div>
+        `;
+        analysisData.structuredData.forEach((data, index) => {
+            html += `
+                <div class="data-item">
+                    <div class="data-label">構造化データ #${index + 1}</div>
+                    <div class="data-value"><pre>${JSON.stringify(data, null, 2)}</pre></div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    // 検出キーワード
+    html += `
+        <div class="data-section">
+            <h3 class="data-section-title">検出キーワード</h3>
+            <div class="data-item">
+                <div class="data-label">キーワード</div>
+                <div class="data-value">${analysisData.keywords.join(', ') || '(なし)'}</div>
+            </div>
+        </div>
+    `;
+    
+    return html;
 }
 
 /**
